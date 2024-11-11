@@ -1,0 +1,242 @@
+// ==UserScript==
+// @name         GPT-mini extension
+// @namespace    http://tampermonkey.net/
+// @version      1
+// @description  Select text and package it as a gpt-4o-mini prompt for set questions.
+// @author       Keenan
+// @match        *://*/*
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const apiKey = 'KEY';
+
+    // Constants for buttons
+    const buttonWidth = '120px';
+    const button_text_size = '10px';
+
+    // button in top right corner
+    const button = document.createElement('button');
+    button.textContent = '4o-mini';
+    button.style.position = 'fixed';
+    button.style.top = '10px';
+    button.style.right = '10px';
+    button.style.zIndex = '9999';
+    document.body.appendChild(button);
+
+    // popup window when corner button is pushed
+    const popup = document.createElement('div');
+    popup.id = 'popup-window';
+    popup.style.display = 'none';
+    popup.style.position = 'fixed';
+    popup.style.width = '600px';
+    popup.style.height = '300px';
+    popup.style.top = '50px';
+    popup.style.right = '50px';
+    popup.style.backgroundColor = '#fff';
+    popup.style.border = '1px solid #000';
+    popup.style.padding = '10px';
+    popup.style.zIndex = '10000';
+
+    // button container in popup window
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'space-between';
+    buttonContainer.style.marginBottom = '10px';
+    popup.appendChild(buttonContainer);
+
+    // define buttoms for prepackaged prompts
+    const buttonA = document.createElement('button');
+    buttonA.textContent = 'Casual french';
+    buttonA.style.width = buttonWidth;
+    buttonA.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonA);
+
+    const buttonB = document.createElement('button');
+    buttonB.textContent = 'Dutch';
+    buttonB.style.width = buttonWidth;
+    buttonB.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonB);
+
+    const buttonC = document.createElement('button');
+    buttonC.textContent = 'Factcheck';
+    buttonC.style.width = buttonWidth;
+    buttonC.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonC);
+
+    const buttonD = document.createElement('button');
+    buttonD.textContent = 'Summarize';
+    buttonD.style.width = buttonWidth;
+    buttonD.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonD);
+
+    const buttonE = document.createElement('button');
+    buttonE.textContent = 'Explain';
+    buttonE.style.width = buttonWidth;
+    buttonE.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonE);
+
+    const buttonF = document.createElement('button');
+    buttonF.textContent = 'Answer';
+    buttonF.style.width = buttonWidth;
+    buttonF.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonF);
+
+    const buttonG = document.createElement('button');
+    buttonG.textContent = 'english';
+    buttonG.style.width = buttonWidth;
+    buttonG.style.fontSize = button_text_size;
+    buttonContainer.appendChild(buttonG);
+
+    // Add a container for written prompt
+    const customPromptContainer = document.createElement('div');
+    customPromptContainer.style.display = 'flex';
+    customPromptContainer.style.justifyContent = 'space-between';
+    customPromptContainer.style.marginTop = '10px';
+    popup.appendChild(customPromptContainer);
+
+
+
+    // text input field for custom prompt
+    const customPromptInput = document.createElement('textarea');
+    customPromptInput.placeholder = 'Write query here';
+    customPromptInput.style.width = '90%';
+    customPromptInput.style.height = '25px';
+    customPromptInput.style.marginRight = '10px';
+    customPromptContainer.appendChild(customPromptInput);
+
+    // button to send the custom prompt
+    const sendCustomPromptButton = document.createElement('button');
+    sendCustomPromptButton.textContent = 'go';
+    sendCustomPromptButton.style.width = '7%';
+    sendCustomPromptButton.style.fontSize = button_text_size;
+    customPromptContainer.appendChild(sendCustomPromptButton);
+
+    // Sending the custom prompt
+    sendCustomPromptButton.addEventListener('click', async () => {
+        const customPrompt = customPromptInput.value.trim();
+        if (customPrompt) {
+            output.textContent = ''; // Clear previous output
+            try {
+                const responseText = await callGPTForTranslation(customPrompt);
+                output.textContent = `${responseText}`;
+            } catch (error) {
+                output.textContent = `Error: ${error.message}`;
+            }
+        } else {
+            output.textContent = 'Please enter a custom prompt';
+        }
+    });
+
+    // Output space
+    const output = document.createElement('div');
+    output.id = 'output';
+    output.style.marginTop = '10px';
+    output.style.border = '1px solid #ddd';
+    output.style.padding = '5px';
+    output.style.height = '150px';
+    output.style.overflowY = 'auto';
+    popup.appendChild(output);
+
+    document.body.appendChild(popup);
+
+    // Show/hide popup when the main button is clicked
+    button.addEventListener('click', () => {
+        popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Function to get highlighted text from browser
+    function getSelectedText() {
+        const selection = window.getSelection();
+        return selection ? selection.toString() : '';
+    }
+
+    // Function to call OpenAI API
+    async function callGPTForTranslation(prompt) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: 'https://api.openai.com/v1/chat/completions',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                data: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'user', content: prompt }
+                    ],
+                    max_tokens: 1000,
+                    temperature: 0.5
+                }),
+                onload: (response) => {
+                    const responseData = JSON.parse(response.responseText);
+                    if (response.status === 200 && responseData.choices) {
+                        resolve(responseData.choices[0].message.content);
+                    } else {
+                        reject(new Error('API Error: ' + response.statusText));
+                    }
+                },
+                onerror: (error) => {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    // Handle button clicks
+    async function handleButtonClick(languagePrompt) {
+        const selectedText = getSelectedText();
+        if (selectedText) {
+            output.textContent = ``; // Clear previous output
+            const prompt = `${languagePrompt}: "${selectedText}"`;
+            try {
+                const responseText = await callGPTForTranslation(prompt);
+                output.textContent = `${responseText}`;
+            } catch (error) {
+                output.textContent = `Error: ${error.message}`;
+            }
+        } else {
+            output.textContent = 'No text selected';
+        }
+    }
+
+    // Button A
+    buttonA.addEventListener('click', () => handleButtonClick('Please translate the following text to casual and friendly French (tutoyer): '));
+
+    // Button B
+    buttonB.addEventListener('click', () => handleButtonClick("Please translate the following text to Dutch as if you're addressing a social work client: "));
+
+    // Button C
+    buttonC.addEventListener('click', () => handleButtonClick('Please verify whether the following information is true: '));
+
+    // Button D
+    buttonD.addEventListener('click', () => handleButtonClick('Please summarize the following text in maximum two sentences: '));
+
+    // Button E
+    buttonE.addEventListener('click', () => handleButtonClick('Please explain the following text or code: '));
+
+    // Button F
+    buttonF.addEventListener('click', () => handleButtonClick('Please interpret the following text as a question and answer it truthfully: '));
+
+    // Button G
+    buttonG.addEventListener('click', () => handleButtonClick('Please translate the following text to english: '));
+
+    // Styling for popup
+    GM_addStyle(`
+        #popup-window {
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        #popup-window button {
+            margin-bottom: 10px;
+        }
+        #output {
+            white-space: pre-wrap; /* Preserve newlines */
+            background-color: #f9f9f9; /* Set a light background color */
+            color: #000; /* Set text color to black */
+        }
+    `);
+})();
